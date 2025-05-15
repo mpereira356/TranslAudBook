@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <title>Leitor PDF Inteligente</title>
   <link rel="stylesheet" href="style.css">
+  <style>
+    #tooltip {
+      position: absolute;
+      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+      padding: 10px;
+      z-index: 1000;
+      display: none;
+      max-width: 250px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+    .highlight {
+      background-color: yellow;
+    }
+  </style>
 </head>
 <body>
   <h1>Leitor PDF Inteligente</h1>
@@ -15,21 +30,21 @@
     <button id="buscarPaginaBtn" style="margin-left: 5px; padding: 5px 10px;">🔍 Buscar</button>
   </div>
 
-  <div id="content"></div>
-  <div id="translation"></div>
-
-  <div id="dailyWordsPanel">
-  <h3>Palavras de <span id="currentDateLabel"></span></h3>
-  <table id="dailyWordsList" style="width: 100%;">
-  <thead>
-    <tr>
-      <th>Palavra</th>
-      <th>Tradução</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-  </table>
+  <div style="display: flex;">
+    <div id="content" style="flex: 3;"></div>
+    <div id="dailyWordsPanel" style="flex: 1; margin-left: 20px; border-left: 1px solid #ccc; padding-left: 20px;">
+      <h3>Palavras de <span id="currentDateLabel"></span></h3>
+      <table id="dailyWordsList" style="width: 100%;">
+        <thead>
+          <tr>
+            <th>Palavra</th>
+            <th>Tradução</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
   <div style="text-align: center; margin-top: 30px;">
@@ -46,6 +61,7 @@
     let loadedPdf = null;
     const fileInput = document.getElementById("fileInput");
     const contentDiv = document.getElementById("content");
+    let currentWord = "";
 
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
 
@@ -85,6 +101,150 @@
       await renderPages(startInput, endPage);
       showLoadMoreButton();
     });
+
+    function handleClick(el, word) {
+      document.querySelectorAll("#content span").forEach(s => s.classList.remove("highlight"));
+      el.classList.add("highlight");
+
+      const tooltip = document.getElementById("tooltip");
+      const rect = el.getBoundingClientRect();
+      currentWord = word.toLowerCase();
+
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(word);
+      utterance.lang = 'en-US';
+      speechSynthesis.speak(utterance);
+
+      fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=${encodeURIComponent(word)}`)
+        .then(res => res.json())
+        .then(data => {
+          const translated = data[0][0][0];
+          tooltip.innerHTML = `
+            <div><strong>${word}</strong> significa: ${translated}</div>
+            <button id="addWordBtn">➕ Salvar esta palavra</button><br><br>
+            <button id="checkPronunciationBtn">Testar minha pronúncia 🎤</button>
+            <div id="result" style="margin-top: 8px; font-weight: bold;"></div>
+          `;
+          tooltip.style.left = `${rect.left + window.scrollX}px`;
+          tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+          tooltip.style.display = "block";
+
+          document.getElementById("addWordBtn").onclick = () => {
+            const today = new Date();
+            const dayKey = today.toISOString().split("T")[0];
+            let wordList = JSON.parse(localStorage.getItem("words-" + dayKey) || "[]");
+
+            if (wordList.length >= 10) {
+              alert("Você já salvou 10 palavras hoje!");
+              return;
+            }
+
+            const alreadyExists = wordList.some(item => item.word === word.toLowerCase());
+            if (!alreadyExists) {
+              wordList.push({ word: word.toLowerCase(), translation: translated });
+              localStorage.setItem("words-" + dayKey, JSON.stringify(wordList));
+              updateDailyWordsPanel();
+            }
+          };
+
+          document.getElementById("checkPronunciationBtn").onclick = () => {
+            const checkBtn = document.getElementById("checkPronunciationBtn");
+            const resultDiv = document.getElementById("result");
+
+            if (!('webkitSpeechRecognition' in window)) {
+              alert("Seu navegador não suporta reconhecimento de voz. Use o Google Chrome.");
+              return;
+            }
+
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = "en-US";
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+              checkBtn.innerText = "🎙️ Ouvindo... fale agora";
+              resultDiv.innerText = "";
+            };
+
+            recognition.onresult = (event) => {
+              const transcript = event.results[0][0].transcript.toLowerCase().trim();
+              if (transcript === currentWord) {
+                resultDiv.innerText = "✅ Pronúncia correta!";
+                resultDiv.style.color = "green";
+              } else {
+                resultDiv.innerText = `❌ Você disse: "${transcript}". Tente novamente.`;
+                resultDiv.style.color = "red";
+              }
+              checkBtn.innerText = "Testar minha pronúncia 🎤";
+            };
+
+            recognition.onerror = () => {
+              resultDiv.innerText = "Erro ao reconhecer sua voz.";
+              resultDiv.style.color = "orange";
+              checkBtn.innerText = "Testar minha pronúncia 🎤";
+            };
+
+            recognition.onend = () => {
+              if (resultDiv.innerText === "") {
+                resultDiv.innerText = "⚠️ Nada foi detectado. Tente novamente.";
+                resultDiv.style.color = "gray";
+                checkBtn.innerText = "Testar minha pronúncia 🎤";
+              }
+            };
+
+            recognition.start();
+          };
+        });
+    }
+
+    function updateDailyWordsPanel() {
+      const today = new Date();
+      const dayKey = today.toISOString().split("T")[0];
+      const displayDate = today.toLocaleDateString("pt-BR");
+
+      document.getElementById("currentDateLabel").innerText = displayDate;
+      const tbody = document.querySelector("#dailyWordsList tbody");
+      tbody.innerHTML = "";
+
+      const wordList = JSON.parse(localStorage.getItem("words-" + dayKey) || "[]");
+
+      wordList.forEach(({ word, translation }, index) => {
+        const row = document.createElement("tr");
+
+        const wordCell = document.createElement("td");
+        wordCell.textContent = word;
+        wordCell.style.color = "blue";
+        wordCell.style.cursor = "pointer";
+        wordCell.style.textDecoration = "underline";
+        wordCell.onclick = () => {
+          const utterance = new SpeechSynthesisUtterance(word);
+          utterance.lang = 'en-US';
+          speechSynthesis.cancel();
+          speechSynthesis.speak(utterance);
+        };
+
+        const translationCell = document.createElement("td");
+        translationCell.textContent = translation;
+
+        const removeCell = document.createElement("td");
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "❌";
+        removeBtn.style.cursor = "pointer";
+        removeBtn.onclick = () => {
+          wordList.splice(index, 1);
+          localStorage.setItem("words-" + dayKey, JSON.stringify(wordList));
+          updateDailyWordsPanel();
+        };
+        removeCell.appendChild(removeBtn);
+
+        row.appendChild(wordCell);
+        row.appendChild(translationCell);
+        row.appendChild(removeCell);
+        tbody.appendChild(row);
+      });
+    }
+
+    updateDailyWordsPanel();
 
     async function renderPages(start, end) {
       for (let i = start; i <= end; i++) {
@@ -138,26 +298,12 @@
       }
     }
 
-    function showLoadMoreButton() {
-      const loadMoreBtn = document.getElementById("loadMoreBtn");
-      if (currentPage < totalPages) {
-        loadMoreBtn.style.display = "block";
-      } else {
-        loadMoreBtn.style.display = "none";
+    document.addEventListener("click", (e) => {
+      const tooltip = document.getElementById("tooltip");
+      if (!e.target.matches("#content span") && !tooltip.contains(e.target)) {
+        tooltip.style.display = "none";
       }
-    }
-
-    document.getElementById("loadMoreBtn").addEventListener("click", async () => {
-      const nextStart = currentPage + 1;
-      const nextEnd = Math.min(currentPage + pageLimit, totalPages);
-      await renderPages(nextStart, nextEnd);
-      currentPage = nextEnd;
-      showLoadMoreButton();
     });
-
-    function handleClick(el, word) {
-      // função de destaque e pronúncia já presente no código original
-    }
   </script>
 </body>
 </html>
