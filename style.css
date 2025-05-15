@@ -1,0 +1,138 @@
+/* Reset básico */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background: #f4f6f8;
+  color: #333;
+  padding: 20px;
+}
+
+/* Título */
+h1 {
+  font-size: 28px;
+  margin-bottom: 20px;
+  color: #1e88e5;
+}
+
+/* Input de arquivo */
+#fileInput {
+  margin-bottom: 20px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* Texto PDF renderizado */
+#content {
+  max-width: 800px;
+  line-height: 1.6;
+  font-size: 18px;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.05);
+  margin-bottom: 30px;
+}
+
+#content span {
+  cursor: pointer;
+  transition: background 0.2s ease;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+#content span:hover {
+  background: #dbeafe;
+}
+
+.highlight {
+  background-color: #ffe082;
+}
+
+/* Tooltip (tradução e pronúncia) */
+#tooltip {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #bbb;
+  padding: 12px 15px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: none;
+  min-width: 240px;
+  font-size: 14px;
+}
+
+#tooltip button {
+  background: #1e88e5;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  margin-top: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+#tooltip button:hover {
+  background: #1565c0;
+}
+
+/* Painel lateral (palavras do dia) */
+#dailyWordsPanel {
+  position: fixed;
+  top: 30px;
+  right: 30px;
+  width: 280px;
+  background: #ffffff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 900;
+}
+
+#dailyWordsPanel h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #37474f;
+}
+
+#dailyWordsList {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#dailyWordsList th,
+#dailyWordsList td {
+  text-align: left;
+  padding: 6px 4px;
+  font-size: 14px;
+}
+
+#dailyWordsList th {
+  color: #607d8b;
+  border-bottom: 1px solid #ccc;
+}
+
+#dailyWordsList td button {
+  background: transparent;
+  border: none;
+  color: #f44336;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+#dailyWordsList td button:hover {
+  color: #c62828;
+}
